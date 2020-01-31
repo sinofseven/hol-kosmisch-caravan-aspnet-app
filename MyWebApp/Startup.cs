@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using MyWebApp.Models;
 
 namespace MyWebApp
 {
@@ -31,8 +33,17 @@ namespace MyWebApp
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            services.AddDistributedSqlServerCache(options =>
+            {
+                options.ConnectionString = Configuration.GetConnectionString("DatabaseConnectionString");
+                options.SchemaName = "dbo";
+                options.TableName = "Cache";
+            });
 
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddMvc(options => options.Filters.Add(new MyWebApp.Filters.LogFilter())).SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+            services.AddDbContext<MyContext>(options => 
+                options.UseSqlServer(Configuration.GetConnectionString("DatabaseConnectionString")));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -54,6 +65,11 @@ namespace MyWebApp
 
             app.UseMvc(routes =>
             {
+                routes.MapAreaRoute(
+                    name: "adminArea",
+                    areaName: "Admin",
+                    template: "Admin/{controller=Default}/{action=Index}/{id?}");
+
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
